@@ -11,6 +11,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test:expense-form": "node --experimental-strip-types tests/expense-form-validation.mjs",
     "test:rls": "node tests/rls-storage.mjs",
     "test:pilot-governance": "node tests/pilot-governance-static.mjs",
     "test:security-local": "cd ../.. && python3 execution/wait_for_supabase_local.py && cd apps/web && set -a && . ../../.tmp/supabase-local-test.env && set +a && node tests/rls-storage.mjs"

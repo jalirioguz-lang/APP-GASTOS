@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
 import { PILOT_CATEGORIES, type PilotCategory } from "../../lib/pilot";
+import { hasAcceptedReceipt, isValidIsoDate, optionalReceipt } from "../../lib/expense-form";
 
 function field(formData: FormData, name: string) {
   return String(formData.get(name) || "").trim();
@@ -33,19 +34,12 @@ export async function createExpense(formData: FormData) {
   const rawRate = field(formData, "exchangeRate");
   const exchangeRate = currency === "COP" ? 1 : Number(rawRate);
   const exchangeRateReason = field(formData, "exchangeRateReason");
-  const receipt = formData.get("receipt");
-  const dateParts = expenseDate.split("-").map(Number);
-  const parsedDate = dateParts.length === 3 ? new Date(Date.UTC(dateParts[0], dateParts[1] - 1, dateParts[2])) : null;
-  const validDate = /^\d{4}-\d{2}-\d{2}$/.test(expenseDate)
-    && parsedDate !== null
-    && parsedDate.getUTCFullYear() === dateParts[0]
-    && parsedDate.getUTCMonth() === dateParts[1] - 1
-    && parsedDate.getUTCDate() === dateParts[2];
+  const receipt = optionalReceipt(formData.get("receipt"));
 
   const validRequestId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId);
-  const validReceipt = receipt === null || (receipt instanceof File && receipt.size > 0 && receipt.size <= 5_000_000 && ["image/jpeg", "image/png", "application/pdf"].includes(receipt.type));
   const validAmount = currency === "COP" ? Number.isSafeInteger(amount) : Number.isFinite(amount) && amount > 0 && Math.round(amount * 100) === amount * 100;
-  if (!validRequestId || title.length < 2 || title.length > 200 || !PILOT_CATEGORIES.includes(category as PilotCategory) || vendor.length > 160 || !validDate || !["COP", "USD", "EUR"].includes(currency) || !validAmount || amount < 1 || amount > 9999999999999999 || !Number.isFinite(exchangeRate) || exchangeRate <= 0 || (currency !== "COP" && (exchangeRateReason.length < 3 || exchangeRateReason.length > 240)) || !validReceipt) {
+  if (!hasAcceptedReceipt(receipt)) redirect("/dashboard?error=El%20comprobante%20debe%20ser%20JPG%2C%20PNG%20o%20PDF%20de%20hasta%205%20MB");
+  if (!validRequestId || title.length < 2 || title.length > 200 || !PILOT_CATEGORIES.includes(category as PilotCategory) || vendor.length > 160 || !isValidIsoDate(expenseDate) || !["COP", "USD", "EUR"].includes(currency) || !validAmount || amount < 1 || amount > 9999999999999999 || !Number.isFinite(exchangeRate) || exchangeRate <= 0 || (currency !== "COP" && (exchangeRateReason.length < 3 || exchangeRateReason.length > 240))) {
     redirect("/dashboard?error=Revisa%20los%20datos%20del%20gasto");
   }
 
@@ -68,7 +62,7 @@ export async function createExpense(formData: FormData) {
   }).select("id").single();
 
   if (error || !expense) redirect("/dashboard?error=No%20fue%20posible%20guardar%20el%20gasto");
-  if (receipt instanceof File && receipt.size > 0) {
+  if (receipt) {
     const filename = receipt.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120) || "comprobante";
     const path = `${organizationId}/${expense.id}/${filename}`;
     const { error: uploadError } = await supabase.storage.from("expense-receipts").upload(path, receipt, { contentType: receipt.type, upsert: false });
@@ -103,7 +97,7 @@ export async function updateDraftExpense(formData: FormData) {
   const vendor = field(formData, "vendor");
   const expenseDate = field(formData, "expenseDate");
   const amount = Number(field(formData, "amount"));
-  if (!/^[0-9a-f-]{36}$/i.test(expenseId) || title.length < 2 || title.length > 200 || !PILOT_CATEGORIES.includes(category as PilotCategory) || vendor.length > 160 || !/^\d{4}-\d{2}-\d{2}$/.test(expenseDate) || !Number.isSafeInteger(amount) || amount < 1) {
+  if (!/^[0-9a-f-]{36}$/i.test(expenseId) || title.length < 2 || title.length > 200 || !PILOT_CATEGORIES.includes(category as PilotCategory) || vendor.length > 160 || !isValidIsoDate(expenseDate) || !Number.isSafeInteger(amount) || amount < 1) {
     redirect("/dashboard?error=Revisa%20los%20datos%20del%20borrador");
   }
   const { error } = await supabase.from("expenses").update({ title, category, vendor: vendor || null, expense_date: expenseDate, original_amount: amount }).eq("id", expenseId).eq("organization_id", organizationId).eq("status", "draft");
@@ -146,7 +140,7 @@ export async function createProjectBudget(formData: FormData) {
   const projectId = field(formData, "projectId");
   const amount = Number(field(formData, "amount"));
   const effectiveFrom = field(formData, "effectiveFrom");
-  if (!/^[0-9a-f-]{36}$/i.test(projectId) || !Number.isSafeInteger(amount) || amount < 1 || !/^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom)) redirect("/dashboard?error=Revisa%20los%20datos%20del%20presupuesto");
+  if (!/^[0-9a-f-]{36}$/i.test(projectId) || !Number.isSafeInteger(amount) || amount < 1 || !isValidIsoDate(effectiveFrom)) redirect("/dashboard?error=Revisa%20los%20datos%20del%20presupuesto");
   const { error } = await supabase.from("project_budgets").insert({ organization_id: organizationId, project_id: projectId, amount_cop: amount, effective_from: effectiveFrom, created_by: user.id });
   if (error) redirect("/dashboard?error=No%20fue%20posible%20crear%20el%20presupuesto");
   redirect("/dashboard");
