@@ -1,0 +1,17 @@
+# Archivos intermedios regenerables
+.tmp/
+__pycache__/
+*.pyc
+
+# Secretos y credenciales locales
+.env
+.env.local
+.env.*.local
+credentials.json
+token.json
+
+# Dependencias y artefactos del frontend
+node_modules/
+.next/
+coverage/
+*.tsbuildinfo
