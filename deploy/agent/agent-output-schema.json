@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reply", "action"],
+  "properties": {
+    "reply": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "action": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["type", "title", "category", "amount_cop", "expense_date", "vendor"],
+      "properties": {
+        "type": { "const": "register_expense" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "amount_cop": { "type": "integer" },
+        "expense_date": { "type": "string" },
+        "vendor": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

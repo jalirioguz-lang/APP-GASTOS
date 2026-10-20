@@ -1,0 +1,25 @@
+[Unit]
+Description=AlDia App private Codex queue worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aldia-agent
+Group=aldia-agent
+WorkingDirectory=/srv/aldia-agent/app
+EnvironmentFile=/etc/aldia-agent.env
+Environment=PYTHONUNBUFFERED=1
+Environment=CODEX_HOME=/srv/aldia-agent/codex-home
+ExecStart=/usr/bin/python3 /srv/aldia-agent/app/execution/agent_worker.py
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/srv/aldia-agent/runs /srv/aldia-agent/codex-home
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
