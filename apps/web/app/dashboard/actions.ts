@@ -18,18 +18,6 @@ async function currentOrganization() {
   return { supabase, user, organizationId };
 }
 
-export async function openReviewOrganization(formData: FormData) {
-  const { supabase, user } = await currentOrganization();
-  const organizationId = field(formData, "organizationId");
-  if (!/^[0-9a-f-]{36}$/i.test(organizationId)) redirect("/dashboard?error=Empresa%20inválida");
-  const { data: directMembership } = await supabase.from("organization_members").select("organization_id").eq("organization_id", organizationId).eq("user_id", user.id).maybeSingle();
-  if (!directMembership) {
-    const { error } = await supabase.from("review_access_events").insert({ organization_id: organizationId, actor_id: user.id, event_type: "dashboard_view" });
-    if (error) redirect("/dashboard?error=No%20tienes%20una%20concesión%20de%20revisión%20vigente");
-  }
-  redirect(`/dashboard?organization=${organizationId}`);
-}
-
 export async function createExpense(formData: FormData) {
   const { supabase, user, organizationId } = await currentOrganization();
   const requestId = field(formData, "requestId");

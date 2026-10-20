@@ -10,14 +10,9 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.redirect(new URL("/auth/login", request.url));
-  const requestedOrganizationId = request.nextUrl.searchParams.get("organization");
   const { data: memberships } = await supabase.from("organization_members").select("organization_id").eq("user_id", user.id);
-  const organizationId = requestedOrganizationId && /^[0-9a-f-]{36}$/i.test(requestedOrganizationId) ? requestedOrganizationId : memberships?.[0]?.organization_id;
+  const organizationId = memberships?.[0]?.organization_id;
   if (!organizationId) return NextResponse.redirect(new URL("/onboarding", request.url));
-  const { data: readableOrganization } = await supabase.from("organizations").select("id").eq("id", organizationId).maybeSingle();
-  if (!readableOrganization) return new NextResponse("No autorizado para exportar esta empresa", { status: 403 });
-  const isDirectMember = (memberships ?? []).some((membership) => membership.organization_id === organizationId);
-  if (!isDirectMember) return new NextResponse("La revisión cruzada no permite exportar", { status: 403 });
   const status = request.nextUrl.searchParams.get("status");
   const projectId = request.nextUrl.searchParams.get("project");
   const category = request.nextUrl.searchParams.get("category");
