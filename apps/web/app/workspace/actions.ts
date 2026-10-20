@@ -87,7 +87,8 @@ export async function sendAgentMessage(formData: FormData) {
   if (expenseError) redirect(`/workspace?conversation=${conversationId}&error=No%20pudimos%20registrar%20el%20gasto`);
   await supabase.from("agent_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
   revalidatePath("/dashboard");
-  redirect("/dashboard?notice=Gasto%20registrado%20como%20borrador%20para%20revisi%C3%B3n");
+  revalidatePath("/workspace");
+  redirect(`/workspace?conversation=${conversationId}&notice=Listo%3A%20preparamos%20un%20borrador.%20Puedes%20registrar%20otro%20gasto%20ahora%20o%20revisarlo%20en%20el%20resumen.`);
 }
 
 async function saveCapture(file: File, source: "photo" | "pdf" | "voice") {
