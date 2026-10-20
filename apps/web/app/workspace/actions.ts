@@ -3,21 +3,21 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
-import { type PilotCategory } from ".../../lib/pilot";
+import { type PilotCategory } from "../../lib/pilot";
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) || "").trim();
 }
 
 function extractExpense(body: string) {
-  const amountMatch = body.match(/(?:\$|cop\s*)?(\d{1,3}(?:[.\s,]\d{3})|+\pd{3,})/i);
+  const amountMatch = body.match(/(?:\$|cop\s*)?(\d{1,3}(?:[.\s,]\d{3})+|\d{3,})/i);
   if (!amountMatch) return null;
   const amount = Number(amountMatch[1].replace(/[^0-9]/g, ""));
   if (!Number.isSafeInteger(amount) || amount < 1) return null;
   const title = body
     .replace(amountMatch[0], "")
     .replace(/\b(?:en\s+)?caja\s+menor\b/gi, "")
-    .replace(/^\s*(?:de|por|pagu[e])\s+/i, "")
+    .replace(/^\s*(?:de|por|pagu[eé])\s+/i, "")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 200) || "Gasto registrado por mensaje";
