@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createClient } from "../../lib/supabase/server";
 import { PILOT_CATEGORIES, type PilotCategory } from "../../lib/pilot";
 import { hasAcceptedReceipt, isValidIsoDate, optionalReceipt } from "../../lib/expense-form";
@@ -55,6 +56,8 @@ export async function createExpense(formData: FormData) {
     original_amount: amount,
     currency,
     exchange_rate_to_cop: exchangeRate,
+    exchange_rate_date: expenseDate,
+    exchange_rate_source: currency === "COP" ? "fixed_cop" : "manual",
     exchange_rate_reason: currency === "COP" ? null : exchangeRateReason,
     created_by: user.id,
     source: "manual",
@@ -97,10 +100,14 @@ export async function updateDraftExpense(formData: FormData) {
   const vendor = field(formData, "vendor");
   const expenseDate = field(formData, "expenseDate");
   const amount = Number(field(formData, "amount"));
-  if (!/^[0-9a-f-]{36}$/i.test(expenseId) || title.length < 2 || title.length > 200 || !PILOT_CATEGORIES.includes(category as PilotCategory) || vendor.length > 160 || !isValidIsoDate(expenseDate) || !Number.isSafeInteger(amount) || amount < 1) {
+  const currency = field(formData, "currency");
+  const exchangeRate = currency === "COP" ? 1 : Number(field(formData, "exchangeRate"));
+  const exchangeRateReason = field(formData, "exchangeRateReason");
+  const validAmount = currency === "COP" ? Number.isSafeInteger(amount) : Number.isFinite(amount) && amount > 0 && Math.round(amount * 100) === amount * 100;
+  if (!/^[0-9a-f-]{36}$/i.test(expenseId) || title.length < 2 || title.length > 200 || !PILOT_CATEGORIES.includes(category as PilotCategory) || vendor.length > 160 || !isValidIsoDate(expenseDate) || !["COP", "USD", "EUR"].includes(currency) || !validAmount || amount < 1 || !Number.isFinite(exchangeRate) || exchangeRate <= 0 || (currency !== "COP" && (exchangeRateReason.length < 3 || exchangeRateReason.length > 240))) {
     redirect("/dashboard?error=Revisa%20los%20datos%20del%20borrador");
   }
-  const { error } = await supabase.from("expenses").update({ title, category, vendor: vendor || null, expense_date: expenseDate, original_amount: amount }).eq("id", expenseId).eq("organization_id", organizationId).eq("status", "draft");
+  const { error } = await supabase.from("expenses").update({ title, category, vendor: vendor || null, expense_date: expenseDate, original_amount: amount, currency, exchange_rate_to_cop: exchangeRate, exchange_rate_date: expenseDate, exchange_rate_source: currency === "COP" ? "fixed_cop" : "user_reviewed", exchange_rate_reason: currency === "COP" ? null : exchangeRateReason }).eq("id", expenseId).eq("organization_id", organizationId).eq("status", "draft");
   if (error) redirect("/dashboard?error=No%20fue%20posible%20actualizar%20el%20borrador");
   redirect("/dashboard?notice=Borrador%20actualizado.");
 }
@@ -122,6 +129,42 @@ export async function createProject(formData: FormData) {
   const { error } = await supabase.from("projects").insert({ organization_id: organizationId, name });
   if (error) redirect("/dashboard?error=No%20fue%20posible%20crear%20el%20proyecto");
   redirect("/dashboard?notice=Proyecto%20creado.");
+}
+
+export async function archiveProject(formData: FormData) {
+  const { supabase, organizationId } = await currentOrganization();
+  const projectId = field(formData, "projectId");
+  if (!/^[0-9a-f-]{36}$/i.test(projectId)) redirect("/dashboard?error=Proyecto%20inválido");
+  const { error } = await supabase.from("projects").update({ archived_at: new Date().toISOString() }).eq("id", projectId).eq("organization_id", organizationId).is("archived_at", null);
+  if (error) redirect("/dashboard?error=No%20fue%20posible%20archivar%20el%20proyecto");
+  revalidatePath("/dashboard");
+  redirect("/dashboard?notice=Proyecto%20archivado.%20Sus%20gastos%20históricos%20se%20conservan.");
+}
+
+export async function restoreProject(formData: FormData) {
+  const { supabase, organizationId } = await currentOrganization();
+  const projectId = field(formData, "projectId");
+  if (!/^[0-9a-f-]{36}$/i.test(projectId)) redirect("/dashboard?error=Proyecto%20inválido");
+  const { error } = await supabase.from("projects").update({ archived_at: null }).eq("id", projectId).eq("organization_id", organizationId).not("archived_at", "is", null);
+  if (error) redirect("/dashboard?error=No%20fue%20posible%20restaurar%20el%20proyecto");
+  revalidatePath("/dashboard");
+  redirect("/dashboard?notice=Proyecto%20restaurado.");
+}
+
+export async function deleteEmptyProject(formData: FormData) {
+  const { supabase, organizationId } = await currentOrganization();
+  const projectId = field(formData, "projectId");
+  const confirmation = field(formData, "confirmation");
+  if (!/^[0-9a-f-]{36}$/i.test(projectId)) redirect("/dashboard?error=Proyecto%20inválido");
+  const { data: project } = await supabase.from("projects").select("id, name").eq("id", projectId).eq("organization_id", organizationId).single();
+  if (!project || confirmation !== project.name) redirect("/dashboard?error=Para%20eliminar%2C%20escribe%20exactamente%20el%20nombre%20del%20proyecto");
+  const { count: expenseCount } = await supabase.from("expenses").select("id", { count: "exact", head: true }).eq("organization_id", organizationId).eq("project_id", projectId);
+  const { count: budgetCount } = await supabase.from("project_budgets").select("id", { count: "exact", head: true }).eq("organization_id", organizationId).eq("project_id", projectId);
+  if ((expenseCount ?? 0) > 0 || (budgetCount ?? 0) > 0) redirect("/dashboard?error=Este%20proyecto%20tiene%20historial.%20Archívalo%20en%20lugar%20de%20eliminarlo.");
+  const { error } = await supabase.from("projects").delete().eq("id", projectId).eq("organization_id", organizationId);
+  if (error) redirect("/dashboard?error=No%20fue%20posible%20eliminar%20el%20proyecto");
+  revalidatePath("/dashboard");
+  redirect("/dashboard?notice=Proyecto%20vacío%20eliminado.");
 }
 
 export async function createFinancialAccount(formData: FormData) {
