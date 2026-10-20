@@ -21,7 +21,7 @@ export function ExpenseEntryForm({ action, organizationId, requestId, projects, 
   const needsExchangeRate = currency !== "COP";
   const suggestedCategory = suggestCategory(description);
 
-  return <section className="card expense-form"><div className="section-heading"><div><p className="overline">Nuevo movimiento</p><h2>Registra un gasto</h2><p className="muted">Guárdalo como borrador. Después podrás revisarlo y confirmarlo.</p></div><span className="step-chip">1 de 1</span></div><form action={action}>
+  return <section id="registro-manual" className="card expense-form"><div className="section-heading"><div><p className="overline">Nuevo movimiento</p><h2>Registra un gasto</h2><p className="muted">Guárdalo como borrador. Después podrás revisarlo y confirmarlo.</p></div><span className="step-chip">1 de 1</span></div><form action={action}>
     <input type="hidden" name="organizationId" value={organizationId} />
     <input type="hidden" name="requestId" value={requestId} />
     <label>Descripción<input name="title" required minLength={2} maxLength={200} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Ej. Cemento para obra, mercado o transporte" /></label>

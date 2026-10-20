@@ -15,7 +15,7 @@ function CaptureIcon({ type }: { type: "mic" | "receipt" | "document" | "message
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[type]}</svg>;
 }
 
-export default async function WorkspacePage({ searchParams }: { searchParams: Promise<{ error?: string; notice?: string }> }) {
+export default async function WorkspacePage({ searchParams }: { searchParams: Promise<{ error?: string; notice?: string; conversation?: string }> }) {
   const params = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -25,26 +25,30 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
     .eq("user_id", user.id).limit(1);
   const organization = memberships?.[0]?.organization as { id: string; name: string } | undefined;
   if (!organization) redirect("/onboarding");
+  const conversationId = params.conversation || "";
+  const { data: recentMessages } = conversationId ? await supabase.from("agent_messages").select("id, body")
+    .eq("organization_id", organization.id).eq("conversation_id", conversationId).eq("role", "user").order("created_at", { ascending: false }).limit(3) : { data: [] as { id: string; body: string }[] };
   return <main className="capture-shell">
-    <header className="capture-topbar"><Link className="wordmark" href="/dashboard">al<span>día</span></Link><div className="capture-context"><span>{organization.name}</span><b>Datos aislados</b><Link href="/dashboard">Ver gastos</Link></div></header>
+    <header className="capture-topbar"><Link className="wordmark" href="/workspace">al<span>día</span></Link><div className="capture-context"><span>{organization.name}</span><b>Datos aislados</b><Link href="/dashboard">Ver resumen</Link></div></header>
     <section className="capture-stage">
-      <div className="capture-intro"><h1>Registra un gasto<br />como te sea más fácil.</h1><p>Escribe, adjunta o graba. Si no indicas moneda, el agente propone COP; si mencionas USD o EUR, conserva el valor original y propone una tasa diaria que podrás revisar.</p></div>
+      <div className="capture-intro"><p className="capture-eyebrow">REGISTRO RÁPIDO</p><h1>¿Qué pagaste?</h1><p>Cuéntaselo al agente como por WhatsApp. Escribe, toma una foto o manda una nota de voz; si no dices moneda, usamos pesos colombianos.</p></div>
       {params.error && <p className="error capture-error" role="alert">{params.error}</p>}
       {params.notice && <p className="capture-notice" role="status">{params.notice}</p>}
-      <section className="capture-console" aria-label="Centro de captura de gastos">
-        <div className="capture-tabs" aria-label="Canales de entrada">
-          <button className="channel active" type="button"><CaptureIcon type="message" />Texto <small>Disponible</small></button>
-          <form action={captureDocument} className="channel upload-channel"><label><CaptureIcon type="receipt" />Foto <small>Elegir archivo</small><input name="document" type="file" accept="image/jpeg,image/png" required /></label><button type="submit">Subir</button></form>
-          <form action={captureDocument} className="channel upload-channel"><label><CaptureIcon type="document" />PDF <small>Elegir archivo</small><input name="document" type="file" accept="application/pdf" required /></label><button type="submit">Subir</button></form>
+      <section className="capture-console" aria-label="Chat para registrar gastos">
+        <form action={sendAgentMessage} className="capture-form">
+          <div className="chat-heading"><CaptureIcon type="message" /><div><strong>Mensaje al agente</strong><span>Describe la compra en tus palabras</span></div></div>
+          <div className="chat-history" aria-label="Conversación reciente"><p className="agent-bubble">Hola. Dime qué pagaste, toma una foto del comprobante o manda una nota de voz.</p>{[...(recentMessages || [])].reverse().map((message) => <p className="person-bubble" key={message.id}>{message.body}</p>)}</div>
+          <input type="hidden" name="conversationId" value={conversationId} />
+          <label className="sr-only" htmlFor="message">Escribe un mensaje al agente</label>
+          <textarea id="message" name="message" required maxLength={12000} placeholder="Ej.: Pagué 28 mil de almuerzo" />
+          <div className="capture-form-footer"><span>Fecha de hoy y COP por defecto. Podrás revisar el borrador después.</span><button type="submit">Enviar <CaptureIcon type="arrow" /></button></div>
+        </form>
+        <div className="quick-actions" aria-label="Otras formas rápidas de registrar">
+          <form action={captureDocument} className="quick-action upload-channel"><label><CaptureIcon type="receipt" /><span><strong>Foto</strong><small>Tomar o subir comprobante</small></span><input name="document" type="file" accept="image/jpeg,image/png" capture="environment" required /></label><button type="submit">Enviar foto</button></form>
           <VoiceCapture />
         </div>
-        <form action={sendAgentMessage} className="capture-form">
-          <label className="sr-only" htmlFor="message">Describe el gasto</label>
-          <textarea id="message" name="message" required maxLength={12000} placeholder="Ejemplo: 55.000 de almuerzo, o 40 USD de gasolina" />
-          <div className="capture-form-footer"><span>Incluye valor y concepto. Los pesos se interpretan como COP; una moneda explícita se conserva. Todo llega como borrador para revisión.</span><button type="submit">Preparar borrador <CaptureIcon type="arrow" /></button></div>
-        </form>
       </section>
-      <section className="capture-guidance" aria-label="Cómo registrar"><div><strong>Texto y moneda</strong><p>Escribe “50.000 de almuerzo” o “40 USD de gasolina”. Podrás corregir la tasa antes de confirmar.</p></div><div><strong>Foto, PDF y voz</strong><p>Quedan aislados por empresa y pendientes de extracción o transcripción. El correo requerirá una conexión autorizada antes de poder leer mensajes.</p></div></section>
+      <section className="capture-guidance" aria-label="Opciones adicionales"><div><strong>Recibir por correo</strong><p>Este espacio tendrá una dirección única para reenviar facturas y comprobantes. La mostraremos aquí con un botón para copiarla cuando el administrador active la recepción.</p></div><div><strong>¿Prefieres hacerlo manual?</strong><p>También puedes completar todos los datos por tu cuenta cuando lo necesites.</p><Link href="/dashboard#registro-manual">Registrar manualmente</Link></div><div><strong>Archivo o PDF</strong><p>Para enviar un PDF, usa el registro manual por ahora. Las fotos y las notas de voz quedan separadas por cada espacio.</p></div></section>
     </section>
   </main>;
 }

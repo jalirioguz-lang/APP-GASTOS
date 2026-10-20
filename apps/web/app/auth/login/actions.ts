@@ -9,7 +9,7 @@ export async function signIn(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email: value(formData, "email"), password: value(formData, "password") });
   if (error) redirect(`/auth/login?error=${encodeURIComponent("No fue posible iniciar sesión.")}`);
-  redirect("/dashboard");
+  redirect("/workspace");
 }
 
 export async function signOut() {
