@@ -1,0 +1,61 @@
+-- Rollback reviewed for 20261020090000_controlled_pilot_governance.sql.
+-- Use only before pilot data depending on cross-review grants, reversals or incidents exists.
+-- Enum values registrar/reviewer are intentionally retained: PostgreSQL enum value removal is unsafe.
+drop policy if exists "central authorizer manages review grants" on public.organization_review_grants;
+drop policy if exists "reviewers read own grants" on public.organization_review_grants;
+drop policy if exists "central authorizer reads review grants" on public.organization_review_grants;
+drop policy if exists "cross reviewers log access" on public.review_access_events;
+drop policy if exists "central authorizer reads access log" on public.review_access_events;
+drop policy if exists "reviewers create reversals" on public.expense_reversals;
+drop policy if exists "authorized users read reversals" on public.expense_reversals;
+drop policy if exists "members report incidents" on public.pilot_incidents;
+drop policy if exists "direct reviewers read incidents" on public.pilot_incidents;
+drop policy if exists "admins update incidents" on public.pilot_incidents;
+drop policy if exists "reviewers confirm drafts" on public.expenses;
+drop policy if exists "registrars update drafts" on public.expenses;
+drop policy if exists "registrars create drafts" on public.expenses;
+drop policy if exists "authorized users read expenses" on public.expenses;
+drop policy if exists "admins create accounts" on public.financial_accounts;
+drop policy if exists "authorized users read accounts" on public.financial_accounts;
+drop policy if exists "admins create projects" on public.projects;
+drop policy if exists "authorized users read projects" on public.projects;
+drop policy if exists "authorized users read organizations" on public.organizations;
+drop policy if exists "registrars create attachment metadata" on public.expense_attachments;
+drop policy if exists "members read attachment metadata" on public.expense_attachments;
+drop policy if exists "authorized users read audit events" on public.audit_events;
+drop policy if exists "members read receipts" on storage.objects;
+drop policy if exists "registrars create receipts" on storage.objects;
+
+create policy "users create organizations for themselves" on public.organizations for insert with check (created_by = auth.uid());
+create policy "members read their organizations" on public.organizations for select using (public.is_organization_member(id));
+create policy "members read projects" on public.projects for select using (public.is_organization_member(organization_id));
+create policy "members create projects" on public.projects for insert with check (public.is_organization_member(organization_id));
+create policy "members read accounts" on public.financial_accounts for select using (public.is_organization_member(organization_id));
+create policy "members create accounts" on public.financial_accounts for insert with check (public.is_organization_member(organization_id));
+create policy "members read expenses" on public.expenses for select using (public.is_organization_member(organization_id));
+create policy "members create own expenses" on public.expenses for insert with check (public.is_organization_member(organization_id) and created_by = auth.uid());
+create policy "members update expenses" on public.expenses for update using (public.is_organization_member(organization_id)) with check (public.is_organization_member(organization_id));
+create policy "admins delete expenses" on public.expenses for delete using (public.is_organization_admin(organization_id));
+create policy "members create attachment metadata" on public.expense_attachments for insert with check (public.is_organization_member(organization_id) and created_by = auth.uid());
+create policy "members read audit events" on public.audit_events for select using (public.is_organization_member(organization_id));
+create policy "members read receipt objects in their organization" on storage.objects for select using (bucket_id = 'expense-receipts' and array_length(storage.foldername(name), 1) = 2 and public.is_organization_member(public.receipt_organization_id(name)));
+create policy "members create receipt objects in their organization" on storage.objects for insert with check (bucket_id = 'expense-receipts' and array_length(storage.foldername(name), 1) = 2 and public.is_organization_member(public.receipt_organization_id(name)));
+create policy "admins manage receipt objects in their organization" on storage.objects for update using (bucket_id = 'expense-receipts' and array_length(storage.foldername(name), 1) = 2 and public.is_organization_admin(public.receipt_organization_id(name))) with check (bucket_id = 'expense-receipts' and array_length(storage.foldername(name), 1) = 2 and public.is_organization_admin(public.receipt_organization_id(name)));
+create policy "admins delete receipt objects in their organization" on storage.objects for delete using (bucket_id = 'expense-receipts' and array_length(storage.foldername(name), 1) = 2 and public.is_organization_admin(public.receipt_organization_id(name)));
+
+drop trigger if exists expenses_pilot_governance_before_write on public.expenses;
+drop function if exists public.assert_expense_immutable_after_confirmation();
+drop trigger if exists expense_reversals_scope_before_insert on public.expense_reversals;
+drop function if exists public.assert_reversal_scope();
+drop trigger if exists organization_review_grants_governance_before_write on public.organization_review_grants;
+drop function if exists public.assert_review_grant_governance();
+drop function if exists public.can_read_organization(uuid);
+drop function if exists public.has_active_review_grant(uuid);
+drop function if exists public.is_central_pilot_authorizer();
+drop function if exists public.is_organization_reviewer(uuid);
+drop function if exists public.is_organization_registrar(uuid);
+drop table if exists public.pilot_incidents;
+drop table if exists public.expense_reversals;
+drop table if exists public.review_access_events;
+drop table if exists public.organization_review_grants;
+drop table if exists public.pilot_central_authorization;
