@@ -98,17 +98,13 @@ export async function sendAgentMessage(formData: FormData) {
   redirect("/dashboard?notice=Gasto%20registrado%20como%20borrador%20para%20revisi%C3%B3n");
 }
 
-export async function captureDocument(formData: FormData) {
+async function saveCapture(file: File, source: "photo" | "pdf" | "voice") {
   const { supabase, user, organizationId } = await currentMember();
-  const document = formData.get("document");
-  const acceptedTypes = ["image/jpeg", "image/png", "application/pdf"];
-  if (!(document instanceof File) || document.size < 1 || document.size > 5_000_000 || !acceptedTypes.includes(document.type)) redirect("/workspace?error=Selecciona%20una%20foto%20JPG%2FPNG%20o%20un%20PDF%20de%20hasta%205%20MB");
-  const source = document.type === "application/pdf" ? "pdf" : "photo";
-  const { data: submission, error: submissionError } = await supabase.from("capture_submissions").insert({ organization_id: organizationId, created_by: user.id, source, original_filename: document.name.slice(0, 255), mime_type: document.type, byte_size: document.size, status: "pending_extraction" }).select("id").single();
+  const { data: submission, error: submissionError } = await supabase.from("capture_submissions").insert({ organization_id: organizationId, created_by: user.id, source, original_filename: file.name.slice(0, 255), mime_type: file.type, byte_size: file.size, status: "pending_extraction" }).select("id").single();
   if (submissionError || !submission) redirect("/workspace?error=No%20pudimos%20recibir%20el%20comprobante");
-  const filename = document.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120) || "comprobante";
+  const filename = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120) || "comprobante";
   const path = `${organizationId}/captures/${submission.id}/${filename}`;
-  const { error: uploadError } = await supabase.storage.from("expense-receipts").upload(path, document, { contentType: document.type, upsert: false });
+  const { error: uploadError } = await supabase.storage.from("expense-receipts").upload(path, file, { contentType: file.type, upsert: false });
   if (uploadError) {
     await supabase.from("capture_submissions").delete().eq("id", submission.id);
     redirect("/workspace?error=No%20pudimos%20guardar%20el%20archivo");
@@ -116,5 +112,20 @@ export async function captureDocument(formData: FormData) {
   const { error: updateError } = await supabase.from("capture_submissions").update({ storage_path: path }).eq("id", submission.id);
   if (updateError) redirect("/workspace?error=El%20archivo%20se%20guard%C3%B3%2C%20pero%20no%20qued%C3%B3%20listo%20para%20extracci%C3%B3n");
   revalidatePath("/workspace");
+}
+
+export async function captureDocument(formData: FormData) {
+  const document = formData.get("document");
+  const acceptedTypes = ["image/jpeg", "image/png", "application/pdf"];
+  if (!(document instanceof File) || document.size < 1 || document.size > 5_000_000 || !acceptedTypes.includes(document.type)) redirect("/workspace?error=Selecciona%20una%20foto%20JPG%2FPNG%20o%20un%20PDF%20de%20hasta%205%20MB");
+  await saveCapture(document, document.type === "application/pdf" ? "pdf" : "photo");
   redirect("/workspace?notice=Comprobante%20recibido.%20Qued%C3%B3%20listo%20para%20extraer%20sus%20datos");
+}
+
+export async function captureVoice(formData: FormData) {
+  const audio = formData.get("audio");
+  const acceptedTypes = ["audio/mpeg", "audio/mp4", "audio/webm"];
+  if (!(audio instanceof File) || audio.size < 1 || audio.size > 5_000_000 || !acceptedTypes.includes(audio.type)) redirect("/workspace?error=La%20nota%20de%20voz%20debe%20ser%20MP3%2C%20M4A%20o%20WEBM%20y%20pesar%20hasta%205%20MB");
+  await saveCapture(audio, "voice");
+  redirect("/workspace?notice=Nota%20de%20voz%20guardada.%20Qued%C3%B3%20pendiente%20de%20transcripci%C3%B3n");
 }

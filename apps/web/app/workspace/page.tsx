@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
 import { captureDocument, sendAgentMessage } from "./actions";
+import { VoiceCapture } from "./voice-capture";
 
 function CaptureIcon({ type }: { type: "mic" | "receipt" | "document" | "message" | "arrow" }) {
   const paths = {
@@ -35,7 +36,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
           <button className="channel active" type="button"><CaptureIcon type="message" />Texto <small>Disponible</small></button>
           <form action={captureDocument} className="channel upload-channel"><label><CaptureIcon type="receipt" />Foto <small>Elegir archivo</small><input name="document" type="file" accept="image/jpeg,image/png" required /></label><button type="submit">Subir</button></form>
           <form action={captureDocument} className="channel upload-channel"><label><CaptureIcon type="document" />PDF <small>Elegir archivo</small><input name="document" type="file" accept="application/pdf" required /></label><button type="submit">Subir</button></form>
-          <button className="channel" type="button" disabled><CaptureIcon type="mic" />Voz <small>Próximamente</small></button>
+          <VoiceCapture />
         </div>
         <form action={sendAgentMessage} className="capture-form">
           <label className="sr-only" htmlFor="message">Describe el gasto</label>
@@ -43,7 +44,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
           <div className="capture-form-footer"><span>Incluye valor y concepto. Lo guardaremos como borrador para que lo revises.</span><button type="submit">Registrar <CaptureIcon type="arrow" /></button></div>
         </form>
       </section>
-      <section className="capture-guidance" aria-label="Cómo registrar"><div><strong>Texto listo ahora</strong><p>Escribe el valor y el concepto; se crea un borrador en tu panel.</p></div><div><strong>Foto y PDF listos</strong><p>Guarda el comprobante aislado por empresa; quedará en espera de extracción. Voz será el siguiente canal.</p></div></section>
+      <section className="capture-guidance" aria-label="Cómo registrar"><div><strong>Texto listo ahora</strong><p>Escribe el valor y el concepto; se crea un borrador en tu panel.</p></div><div><strong>Comprobantes y voz</strong><p>La foto, el PDF o la nota de voz quedan aislados por empresa y listos para su extracción o transcripción.</p></div></section>
     </section>
   </main>;
 }
