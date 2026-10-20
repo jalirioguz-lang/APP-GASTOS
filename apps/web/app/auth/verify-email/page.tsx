@@ -1,0 +1,1 @@
+export default function VerifyEmailPage() { return <main><section className="card"><h1>Revisa tu correo</h1><p>Te enviamos un enlace de verificación. Ábrelo en este mismo navegador para continuar.</p></section></main>; }
