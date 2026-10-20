@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { PILOT_CATEGORIES } from "../../lib/pilot";
+import { categoryLabel, PILOT_CATEGORIES } from "../../lib/pilot";
 
 type Project = { id: string; name: string };
 type Account = { id: string; name: string };
@@ -22,7 +22,7 @@ export function ExpenseEntryForm({ action, organizationId, requestId, projects, 
     <input type="hidden" name="organizationId" value={organizationId} />
     <input type="hidden" name="requestId" value={requestId} />
     <label>Descripción<input name="title" required minLength={2} maxLength={200} placeholder="Ej. Mercado, papelería o transporte" /></label>
-    <div className="form-row"><label>Categoría<select name="category" required defaultValue=""><option value="" disabled>Selecciona una categoría</option>{PILOT_CATEGORIES.map((category) => <option key={category} value={category}>{category.replaceAll("_", " ")}</option>)}</select></label><label>Fecha<input name="expenseDate" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></label></div>
+    <div className="form-row"><label>Categoría<select name="category" required defaultValue=""><option value="" disabled>Selecciona una categoría</option>{PILOT_CATEGORIES.map((category) => <option key={category} value={category}>{categoryLabel(category)}</option>)}</select></label><label>Fecha<input name="expenseDate" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></label></div>
     <div className="form-row"><label>Moneda<select name="currency" value={currency} onChange={(event) => setCurrency(event.target.value)}><option value="COP">COP · peso colombiano</option><option value="USD">USD · dólar estadounidense</option><option value="EUR">EUR · euro</option></select></label><label>Valor<input name="amount" type="number" inputMode="decimal" min={needsExchangeRate ? "0.01" : "1"} step={needsExchangeRate ? "0.01" : "1"} required placeholder="0" /></label></div>
     {needsExchangeRate && <div className="form-row exchange-fields"><label>Tasa a COP<input name="exchangeRate" type="number" inputMode="decimal" min="0.000001" step="0.000001" required placeholder="Ej. 4050" /></label><label>Motivo de la tasa<input name="exchangeRateReason" required minLength={3} maxLength={240} placeholder="Ej. Tasa pactada con el banco" /></label></div>}
     <label>Proveedor <span className="optional">opcional</span><input name="vendor" maxLength={160} placeholder="Nombre del comercio" /></label>
