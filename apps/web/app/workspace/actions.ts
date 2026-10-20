@@ -51,19 +51,23 @@ export async function startConversation() {
 
 export async function sendAgentMessage(formData: FormData) {
   const { supabase, user, organizationId } = await currentMember();
-  const conversationId = text(formData, "conversationId");
+  let conversationId = text(formData, "conversationId");
   const body = text(formData, "message");
-  if (!conversationId || body.length < 1 || body.length > 12000) {
-    redirect(`/workspace?conversation=${encodeURIComponent(conversationId)}&error=Escribe%20un%20mensaje%20de%20hasta%2012.000%20caracteres`);
+  if (body.length < 1 || body.length > 12000) {
+    redirect("/workspace?error=Escribe%20un%20mensaje%20de%20hasta%2012.000%20caracteres");
   }
 
-  const { data: conversation } = await supabase.from("agent_conversations")
-    .select("id")
-    .eq("id", conversationId)
-    .eq("organization_id", organizationId)
-    .eq("status", "active")
-    .single();
-  if (!conversation) redirect("/workspace?error=No%20encontramos%20esa%20conversación");
+  if (conversationId) {
+    const { data: conversation } = await supabase.from("agent_conversations")
+      .select("id").eq("id", conversationId).eq("organization_id", organizationId).eq("status", "active").single();
+    if (!conversation) redirect("/workspace?error=No%20encontramos%20la%20conversación");
+  } else {
+    const { data: conversation, error: conversationError } = await supabase.from("agent_conversations").insert({
+      organization_id: organizationId, created_by: user.id, title: "Registro rápido"
+    }).select("id").single();
+    if (conversationError || !conversation) redirect("/workspace?error=No%20pudimos%20preparar%20el%20registro");
+    conversationId = conversation.id;
+  }
   const { data: message, error: messageError } = await supabase.from("agent_messages").insert({
     conversation_id: conversationId,
     organization_id: organizationId,
