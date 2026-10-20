@@ -11,11 +11,12 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
-  const { data: memberships } = await supabase.from("organization:organizations(id, name)")
+  const { data: memberships } = await supabase.from("organization_members")
+    .select("organization:organizations(id, name)")
     .eq("user_id", user.id).limit(1);
   const organization = memberships?.[0]?.organization as { id: string; name: string } | undefined;
   if (!organization) redirect("/onboarding");
-  const { data: conversationRows } = await supabase.from("agent_messages")
+  const { data: conversationRows } = await supabase.from("agent_conversations")
     .select("id, title, updated_at").eq("organization_id", organization.id).eq("status", "active")
     .order("updated_at", { ascending: false }).limit(30);
   const conversations = (conversationRows ?? []) as Conversation[];
@@ -37,7 +38,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
       {!activeId ? <section className="agent-welcome"><div className="welcome-illustration" aria-hidden="true"><i /><i /><i /><b /></div><h2>Una conversación para cada frente de trabajo.</h2><p>Cuéntale al agente un gasto, adjunta un comprobante o pide revisar tu caja. Cada hilo conserva el contexto de tu empresa.</p><form action={startConversation}><button>Crear primera conversación</button></form></section> : <>
         <section className="message-stream" aria-live="polite">
           {messages.length === 0 && <div className="agent-intro"><strong>¿Qué quieres registrar hoy?</strong><p>Por ejemplo: “Pagué $86.500 de combustible para el proyecto Norte”.</p></div>}
-          {messages.map((message) => <article className={message ${message.role}`} key={message.id}><span>{message.role === "user" ? "Tú" : "AlDía"}</span><p>{message.body}</p></article>)}
+          {messages.map((message) => <article className={`message ${message.role}`} key={message.id}><span>{message.role === "user" ? "Tú" : "AlDía"}</span><p>{message.body}</p></article>)}
         </section>
         <form action={sendAgentMessage} className="composer"><input type="hidden" name="conversationId" value={activeId} /><label className="sr-only" htmlFor="message">Gasto por mensaje</label><textarea id="message" name="message" required maxLength={12000} placeholder="Ejemplo: 55.000 de almuerzo en caja menor" /><div><span>Incluye el valor del gasto. Se guardará como borrador, sin confirmarlo automáticamente.</span><button type="submit">Registrar gasto</button></div></form>
       </>}
