@@ -4,10 +4,17 @@ alter table public.expenses
   add column if not exists exchange_rate_date date,
   add column if not exists exchange_rate_source text check (char_length(exchange_rate_source) between 1 and 120);
 
+-- Los gastos confirmados son inmutables por trigger. El relleno de estas dos
+-- columnas nuevas es técnico y se ejecuta dentro de esta misma transacción;
+-- los triggers de usuario se reactivan antes de que la migración termine.
+alter table public.expenses disable trigger user;
+
 update public.expenses
 set exchange_rate_date = expense_date,
     exchange_rate_source = case when currency = 'COP' then 'fixed_cop' else 'manual_legacy' end
 where exchange_rate_date is null or exchange_rate_source is null;
+
+alter table public.expenses enable trigger user;
 
 alter table public.expenses
   alter column exchange_rate_date set not null,
