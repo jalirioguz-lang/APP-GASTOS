@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AlDía APP",
-  description: "Control de gastos para pequeñas empresas"
+  title: "AlDía | Gastos claros",
+  description: "Control de gastos para empresas, hogares, proyectos y viajes"
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

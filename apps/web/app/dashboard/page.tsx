@@ -54,7 +54,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const confirmedTotal = items.filter((expense) => expense.status === "confirmed").reduce((sum, expense) => sum + Number(expense.amount_cop), 0);
   const accountBalances = accountItems.map((account) => ({ ...account, balance: Number(account.opening_balance) - items.filter((expense) => expense.status === "confirmed" && expense.account_id === account.id).reduce((sum, expense) => sum + Number(expense.amount_cop), 0) }));
 
-  return <main className="dashboard stack">
+  return <main className="dashboard stack premium-dashboard">
     <header className="page-header"><div><p className="overline">{copy.label}</p><h1>{organization.name}</h1><p className="muted">{copy.description}</p></div><div className="header-actions"><div className="total"><span>Confirmados visibles</span><strong>{formatCop(confirmedTotal)}</strong></div><Link className="agent-link" href="/workspace">Abrir agente</Link><form action={signOut}><button className="quiet-button">Salir</button></form></div></header>
     {message && <p className="error" role="alert">{message}</p>}
     {notice && <p className="notice" role="status">{notice}</p>}
