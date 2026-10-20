@@ -3,9 +3,25 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
+import { type PilotCategory } from ".../../lib/pilot";
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) || "").trim();
+}
+
+function extractExpense(body: string) {
+  const amountMatch = body.match(/(?:\$|cop\s*)?(\d{1,3}(?:[.\s,]\d{3})|+\pd{3,})/i);
+  if (!amountMatch) return null;
+  const amount = Number(amountMatch[1].replace(/[^0-9]/g, ""));
+  if (!Number.isSafeInteger(amount) || amount < 1) return null;
+  const title = body
+    .replace(amountMatch[0], "")
+    .replace(/\b(?:en\s+)?caja\s+menor\b/gi, "")
+    .replace(/^\s*(?:de|por|pagu[e])\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 200) || "Gasto registrado por mensaje";
+  return { amount, title };
 }
 
 async function currentMember() {
@@ -48,12 +64,6 @@ export async function sendAgentMessage(formData: FormData) {
     .eq("status", "active")
     .single();
   if (!conversation) redirect("/workspace?error=No%20encontramos%20esa%20conversación");
-  const { data: pendingRun } = await supabase.from("agent_runs")
-    .select("id").eq("conversation_id", conversationId).in("status", ["queued", "running"]).limit(1);
-  if (pendingRun?.length) {
-    redirect(`/workspace?conversation=${conversationId}&error=El%20agente%20aún%20está%20atendiendo%20tu%20mensaje%20anterior`);
-  }
-
   const { data: message, error: messageError } = await supabase.from("agent_messages").insert({
     conversation_id: conversationId,
     organization_id: organizationId,
@@ -63,14 +73,23 @@ export async function sendAgentMessage(formData: FormData) {
   }).select("id").single();
   if (messageError || !message) redirect(`/workspace?conversation=${conversationId}&error=No%20pudimos%20enviar%20tu%20mensaje`);
 
-  const { error: runError } = await supabase.from("agent_runs").insert({
-    conversation_id: conversationId,
+  const expense = extractExpense(body);
+  if (!expense) redirect(`/workspace?conversation=${conversationId}&error=Escribe%20el%20valor%20del%20gasto%20para%20registrarlo%20como%20borrador`);
+  const { error: expenseError } = await supabase.from("expenses").insert({
     organization_id: organizationId,
-    requested_by: user.id,
-    input_message_id: message.id
+    client_request_id: crypto.randomUUID(),
+    title: expense.title,
+    category: "gastos_administrativos" as PilotCategory,
+    expense_date: new Date().toISOString().slice(0, 10),
+    original_amount: expense.amount,
+    currency: "COP",
+    exchange_rate_to_cop: 1,
+    created_by: user.id,
+    source: "message",
+    status: "draft"
   });
-  if (runError) redirect(`/workspace?conversation=${conversationId}&error=No%20pudimos%20poner%20tu%20solicitud%20en%20cola`);
+  if (expenseError) redirect(`/workspace?conversation=${conversationId}&error=No%20pudimos%20registrar%20el%20gasto`);
   await supabase.from("agent_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
-  revalidatePath("/workspace");
-  redirect(`/workspace?conversation=${conversationId}`);
+  revalidatePath("/dashboard");
+  redirect("/dashboard?notice=Gasto%20registrado%20como%20borrador%20para%20revisi%C3%B3n");
 }
