@@ -48,7 +48,8 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
           <VoiceCapture />
         </div>
       </section>
-      <section className="capture-guidance" aria-label="Opciones adicionales"><div><strong>Recibir por correo</strong><p>Este espacio tendrá una dirección única para reenviar facturas y comprobantes. La mostraremos aquí con un botón para copiarla cuando el administrador active la recepción.</p></div><div><strong>¿Prefieres hacerlo manual?</strong><p>También puedes completar todos los datos por tu cuenta cuando lo necesites.</p><Link href="/dashboard#registro-manual">Registrar manualmente</Link></div><div><strong>Archivo o PDF</strong><p>Para enviar un PDF, usa el registro manual por ahora. Las fotos y las notas de voz quedan separadas por cada espacio.</p></div></section>
+      <section className="manual-entry-card" aria-labelledby="manual-entry-title"><div><p className="capture-eyebrow">OTRA FORMA DE REGISTRAR</p><h2 id="manual-entry-title">¿Quieres llenar los datos tú?</h2><p><strong>Registro manual</strong> te permite indicar cada detalle: fecha, valor, categoría, cuenta, proyecto y moneda. Úsalo cuando necesites tener el control completo del gasto.</p></div><Link className="manual-entry-button" href="/dashboard#registro-manual">Ir a registro manual <CaptureIcon type="arrow" /></Link></section>
+      <section className="capture-guidance" aria-label="Opciones adicionales"><div><strong>Recibir por correo</strong><p>Este espacio tendrá una dirección única para reenviar facturas y comprobantes. La mostraremos aquí con un botón para copiarla cuando el administrador active la recepción.</p></div><div><strong>Archivo o PDF</strong><p>Para enviar un PDF, usa el registro manual por ahora. Las fotos y las notas de voz quedan separadas por cada espacio.</p></div></section>
     </section>
   </main>;
 }
