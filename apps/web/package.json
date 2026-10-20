@@ -1,0 +1,31 @@
+{
+  "name": "aldia-app-web",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": "22.22.1",
+    "npm": "9.2.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test:rls": "node tests/rls-storage.mjs",
+    "test:pilot-governance": "node tests/pilot-governance-static.mjs",
+    "test:security-local": "cd ../.. && python3 execution/wait_for_supabase_local.py && cd apps/web && set -a && . ../../.tmp/supabase-local-test.env && set +a && node tests/rls-storage.mjs"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.7.0",
+    "@supabase/supabase-js": "^2.49.1",
+    "next": "^15.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.7.0"
+  }
+}
