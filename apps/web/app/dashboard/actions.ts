@@ -73,7 +73,7 @@ export async function createExpense(formData: FormData) {
       redirect("/dashboard?error=El%20comprobante%20no%20pasó%20la%20validación");
     }
   }
-  redirect("/dashboard");
+  redirect("/dashboard?notice=Gasto%20guardado%20como%20borrador.%20Rev%C3%ADsalo%20y%20conf%C3%ADrmalo%20cuando%20est%C3%A9%20listo.");
 }
 
 export async function confirmExpense(formData: FormData) {
@@ -86,7 +86,7 @@ export async function confirmExpense(formData: FormData) {
     .eq("organization_id", organizationId)
     .eq("status", "draft");
   if (error) redirect("/dashboard?error=No%20fue%20posible%20confirmar%20el%20gasto");
-  redirect("/dashboard");
+  redirect("/dashboard?notice=Gasto%20confirmado.");
 }
 
 export async function updateDraftExpense(formData: FormData) {
@@ -102,7 +102,7 @@ export async function updateDraftExpense(formData: FormData) {
   }
   const { error } = await supabase.from("expenses").update({ title, category, vendor: vendor || null, expense_date: expenseDate, original_amount: amount }).eq("id", expenseId).eq("organization_id", organizationId).eq("status", "draft");
   if (error) redirect("/dashboard?error=No%20fue%20posible%20actualizar%20el%20borrador");
-  redirect("/dashboard");
+  redirect("/dashboard?notice=Borrador%20actualizado.");
 }
 
 export async function createExpenseReversal(formData: FormData) {
@@ -112,7 +112,7 @@ export async function createExpenseReversal(formData: FormData) {
   if (!/^[0-9a-f-]{36}$/i.test(expenseId) || reason.length < 10 || reason.length > 500) redirect("/dashboard?error=El%20motivo%20del%20reverso%20debe%20tener%20entre%2010%20y%20500%20caracteres");
   const { error } = await supabase.from("expense_reversals").insert({ organization_id: organizationId, original_expense_id: expenseId, reason, created_by: user.id });
   if (error) redirect("/dashboard?error=No%20fue%20posible%20registrar%20el%20reverso");
-  redirect("/dashboard");
+  redirect("/dashboard?notice=Reverso%20registrado.");
 }
 
 export async function createProject(formData: FormData) {
@@ -121,7 +121,7 @@ export async function createProject(formData: FormData) {
   if (name.length < 1 || name.length > 120) redirect("/dashboard?error=Nombre%20de%20proyecto%20inválido");
   const { error } = await supabase.from("projects").insert({ organization_id: organizationId, name });
   if (error) redirect("/dashboard?error=No%20fue%20posible%20crear%20el%20proyecto");
-  redirect("/dashboard");
+  redirect("/dashboard?notice=Proyecto%20creado.");
 }
 
 export async function createFinancialAccount(formData: FormData) {
@@ -132,7 +132,7 @@ export async function createFinancialAccount(formData: FormData) {
   if (name.length < 1 || name.length > 120 || !["bank", "petty_cash", "cash", "other"].includes(accountType) || !Number.isSafeInteger(openingBalance) || Math.abs(openingBalance) > 9999999999999999) redirect("/dashboard?error=Datos%20de%20cuenta%20inválidos");
   const { error } = await supabase.from("financial_accounts").insert({ organization_id: organizationId, name, account_type: accountType, currency: "COP", opening_balance: openingBalance });
   if (error) redirect("/dashboard?error=No%20fue%20posible%20crear%20la%20cuenta");
-  redirect("/dashboard");
+  redirect("/dashboard?notice=Cuenta%20creada.");
 }
 
 export async function createProjectBudget(formData: FormData) {
@@ -143,5 +143,5 @@ export async function createProjectBudget(formData: FormData) {
   if (!/^[0-9a-f-]{36}$/i.test(projectId) || !Number.isSafeInteger(amount) || amount < 1 || !isValidIsoDate(effectiveFrom)) redirect("/dashboard?error=Revisa%20los%20datos%20del%20presupuesto");
   const { error } = await supabase.from("project_budgets").insert({ organization_id: organizationId, project_id: projectId, amount_cop: amount, effective_from: effectiveFrom, created_by: user.id });
   if (error) redirect("/dashboard?error=No%20fue%20posible%20crear%20el%20presupuesto");
-  redirect("/dashboard");
+  redirect("/dashboard?notice=Presupuesto%20definido.");
 }

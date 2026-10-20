@@ -1,5 +1,6 @@
 import { createOrganization } from "./actions";
 
-export default function OnboardingPage() {
-  return <main><section className="card stack"><h1>Crea tu empresa</h1><p className="muted">Durante el piloto, cada persona crea su propio espacio de trabajo aislado y queda como responsable de sus gastos.</p><form action={createOrganization}><label>Nombre de empresa<input name="organizationName" required minLength={2} maxLength={120} /></label><button>Crear espacio de trabajo</button></form></section></main>;
+export default async function OnboardingPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await searchParams;
+  return <main><section className="card stack onboarding-card"><p className="overline">Empecemos por lo básico</p><h1>Crea tu espacio de gastos</h1><p className="muted">Funciona para una empresa, tu hogar o tus cuentas personales. Podrás añadir cuentas y proyectos solo si te ayudan a organizarte.</p>{error && <p className="error" role="alert">{error}</p>}<form action={createOrganization}><label>¿Cómo vas a usar Al Día?<span className="workspace-options"><span><input type="radio" name="workspaceType" value="business" defaultChecked /><b>Empresa o pyme</b><small>Operación, proveedores y caja.</small></span><span><input type="radio" name="workspaceType" value="household" /><b>Hogar</b><small>Gastos compartidos de casa.</small></span><span><input type="radio" name="workspaceType" value="personal" /><b>Personal</b><small>Tus gastos y objetivos.</small></span></span></label><label>Nombre del espacio<input name="organizationName" required minLength={2} maxLength={120} placeholder="Ej. Casa Ramírez o Mi empresa" /></label><button>Crear mi espacio</button></form></section></main>;
 }
