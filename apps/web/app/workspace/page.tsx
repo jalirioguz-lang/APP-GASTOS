@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
-import { sendAgentMessage } from "./actions";
+import { captureDocument, sendAgentMessage } from "./actions";
 
 function CaptureIcon({ type }: { type: "mic" | "receipt" | "document" | "message" | "arrow" }) {
   const paths = {
@@ -14,7 +14,7 @@ function CaptureIcon({ type }: { type: "mic" | "receipt" | "document" | "message
   return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{paths[type]}</svg>;
 }
 
-export default async function WorkspacePage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function WorkspacePage({ searchParams }: { searchParams: Promise<{ error?: string; notice?: string }> }) {
   const params = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -29,11 +29,12 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
     <section className="capture-stage">
       <div className="capture-intro"><h1>Registra un gasto<br />como te sea más fácil.</h1><p>Una sola entrada para mantener tu caja menor al día. Tú controlas cada borrador antes de confirmarlo.</p></div>
       {params.error && <p className="error capture-error" role="alert">{params.error}</p>}
+      {params.notice && <p className="capture-notice" role="status">{params.notice}</p>}
       <section className="capture-console" aria-label="Centro de captura de gastos">
         <div className="capture-tabs" aria-label="Canales de entrada">
           <button className="channel active" type="button"><CaptureIcon type="message" />Texto <small>Disponible</small></button>
-          <button className="channel" type="button" disabled><CaptureIcon type="receipt" />Foto <small>Próximamente</small></button>
-          <button className="channel" type="button" disabled><CaptureIcon type="document" />PDF <small>Próximamente</small></button>
+          <form action={captureDocument} className="channel upload-channel"><label><CaptureIcon type="receipt" />Foto <small>Elegir archivo</small><input name="document" type="file" accept="image/jpeg,image/png" required /></label><button type="submit">Subir</button></form>
+          <form action={captureDocument} className="channel upload-channel"><label><CaptureIcon type="document" />PDF <small>Elegir archivo</small><input name="document" type="file" accept="application/pdf" required /></label><button type="submit">Subir</button></form>
           <button className="channel" type="button" disabled><CaptureIcon type="mic" />Voz <small>Próximamente</small></button>
         </div>
         <form action={sendAgentMessage} className="capture-form">
@@ -42,7 +43,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
           <div className="capture-form-footer"><span>Incluye valor y concepto. Lo guardaremos como borrador para que lo revises.</span><button type="submit">Registrar <CaptureIcon type="arrow" /></button></div>
         </form>
       </section>
-      <section className="capture-guidance" aria-label="Cómo registrar"><div><strong>Texto listo ahora</strong><p>Escribe el valor y el concepto; se crea un borrador en tu panel.</p></div><div><strong>Documentos, foto y voz</strong><p>La interfaz ya prevé estos canales. Se activarán cuando conectemos OCR y transcripción.</p></div></section>
+      <section className="capture-guidance" aria-label="Cómo registrar"><div><strong>Texto listo ahora</strong><p>Escribe el valor y el concepto; se crea un borrador en tu panel.</p></div><div><strong>Foto y PDF listos</strong><p>Guarda el comprobante aislado por empresa; quedará en espera de extracción. Voz será el siguiente canal.</p></div></section>
     </section>
   </main>;
 }

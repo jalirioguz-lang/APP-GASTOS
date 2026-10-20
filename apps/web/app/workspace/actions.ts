@@ -97,3 +97,24 @@ export async function sendAgentMessage(formData: FormData) {
   revalidatePath("/dashboard");
   redirect("/dashboard?notice=Gasto%20registrado%20como%20borrador%20para%20revisi%C3%B3n");
 }
+
+export async function captureDocument(formData: FormData) {
+  const { supabase, user, organizationId } = await currentMember();
+  const document = formData.get("document");
+  const acceptedTypes = ["image/jpeg", "image/png", "application/pdf"];
+  if (!(document instanceof File) || document.size < 1 || document.size > 5_000_000 || !acceptedTypes.includes(document.type)) redirect("/workspace?error=Selecciona%20una%20foto%20JPG%2FPNG%20o%20un%20PDF%20de%20hasta%205%20MB");
+  const source = document.type === "application/pdf" ? "pdf" : "photo";
+  const { data: submission, error: submissionError } = await supabase.from("capture_submissions").insert({ organization_id: organizationId, created_by: user.id, source, original_filename: document.name.slice(0, 255), mime_type: document.type, byte_size: document.size, status: "pending_extraction" }).select("id").single();
+  if (submissionError || !submission) redirect("/workspace?error=No%20pudimos%20recibir%20el%20comprobante");
+  const filename = document.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120) || "comprobante";
+  const path = `${organizationId}/captures/${submission.id}/${filename}`;
+  const { error: uploadError } = await supabase.storage.from("expense-receipts").upload(path, document, { contentType: document.type, upsert: false });
+  if (uploadError) {
+    await supabase.from("capture_submissions").delete().eq("id", submission.id);
+    redirect("/workspace?error=No%20pudimos%20guardar%20el%20archivo");
+  }
+  const { error: updateError } = await supabase.from("capture_submissions").update({ storage_path: path }).eq("id", submission.id);
+  if (updateError) redirect("/workspace?error=El%20archivo%20se%20guard%C3%B3%2C%20pero%20no%20qued%C3%B3%20listo%20para%20extracci%C3%B3n");
+  revalidatePath("/workspace");
+  redirect("/workspace?notice=Comprobante%20recibido.%20Qued%C3%B3%20listo%20para%20extraer%20sus%20datos");
+}
