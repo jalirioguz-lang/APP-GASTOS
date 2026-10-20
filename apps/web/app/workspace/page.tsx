@@ -28,7 +28,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
   return <main className="capture-shell">
     <header className="capture-topbar"><Link className="wordmark" href="/dashboard">al<span>día</span></Link><div className="capture-context"><span>{organization.name}</span><b>Datos aislados</b><Link href="/dashboard">Ver gastos</Link></div></header>
     <section className="capture-stage">
-      <div className="capture-intro"><h1>Registra un gasto<br />como te sea más fácil.</h1><p>Una sola entrada para mantener tu caja menor al día. Tú controlas cada borrador antes de confirmarlo.</p></div>
+      <div className="capture-intro"><h1>Registra un gasto<br />como te sea más fácil.</h1><p>Escribe, adjunta o graba. Si no indicas moneda, el agente propone COP; si mencionas USD o EUR, conserva el valor original y propone una tasa diaria que podrás revisar.</p></div>
       {params.error && <p className="error capture-error" role="alert">{params.error}</p>}
       {params.notice && <p className="capture-notice" role="status">{params.notice}</p>}
       <section className="capture-console" aria-label="Centro de captura de gastos">
@@ -40,11 +40,11 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
         </div>
         <form action={sendAgentMessage} className="capture-form">
           <label className="sr-only" htmlFor="message">Describe el gasto</label>
-          <textarea id="message" name="message" required maxLength={12000} placeholder="Ejemplo: 55.000 de almuerzo en caja menor" />
-          <div className="capture-form-footer"><span>Incluye valor y concepto. Lo guardaremos como borrador para que lo revises.</span><button type="submit">Registrar <CaptureIcon type="arrow" /></button></div>
+          <textarea id="message" name="message" required maxLength={12000} placeholder="Ejemplo: 55.000 de almuerzo, o 40 USD de gasolina" />
+          <div className="capture-form-footer"><span>Incluye valor y concepto. Los pesos se interpretan como COP; una moneda explícita se conserva. Todo llega como borrador para revisión.</span><button type="submit">Preparar borrador <CaptureIcon type="arrow" /></button></div>
         </form>
       </section>
-      <section className="capture-guidance" aria-label="Cómo registrar"><div><strong>Texto listo ahora</strong><p>Escribe el valor y el concepto; se crea un borrador en tu panel.</p></div><div><strong>Comprobantes y voz</strong><p>La foto, el PDF o la nota de voz quedan aislados por empresa y listos para su extracción o transcripción.</p></div></section>
+      <section className="capture-guidance" aria-label="Cómo registrar"><div><strong>Texto y moneda</strong><p>Escribe “50.000 de almuerzo” o “40 USD de gasolina”. Podrás corregir la tasa antes de confirmar.</p></div><div><strong>Foto, PDF y voz</strong><p>Quedan aislados por empresa y pendientes de extracción o transcripción. El correo requerirá una conexión autorizada antes de poder leer mensajes.</p></div></section>
     </section>
   </main>;
 }

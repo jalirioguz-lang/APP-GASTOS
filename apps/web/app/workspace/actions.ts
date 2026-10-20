@@ -3,25 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
-import { type PilotCategory } from "../../lib/pilot";
+import { suggestCategory, type PilotCategory } from "../../lib/pilot";
+import { parseExpenseMessage } from "../../lib/capture-parser";
+import { currentCopRate } from "../../lib/exchange-rate";
 
 function text(formData: FormData, name: string) {
   return String(formData.get(name) || "").trim();
-}
-
-function extractExpense(body: string) {
-  const amountMatch = body.match(/(?:\$|cop\s*)?(\d{1,3}(?:[.\s,]\d{3})+|\d{3,})/i);
-  if (!amountMatch) return null;
-  const amount = Number(amountMatch[1].replace(/[^0-9]/g, ""));
-  if (!Number.isSafeInteger(amount) || amount < 1) return null;
-  const title = body
-    .replace(amountMatch[0], "")
-    .replace(/\b(?:en\s+)?caja\s+menor\b/gi, "")
-    .replace(/^\s*(?:de|por|pagu[eé])\s+/i, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 200) || "Gasto registrado por mensaje";
-  return { amount, title };
 }
 
 async function currentMember() {
@@ -77,17 +64,22 @@ export async function sendAgentMessage(formData: FormData) {
   }).select("id").single();
   if (messageError || !message) redirect(`/workspace?conversation=${conversationId}&error=No%20pudimos%20enviar%20tu%20mensaje`);
 
-  const expense = extractExpense(body);
+  const expense = parseExpenseMessage(body);
   if (!expense) redirect(`/workspace?conversation=${conversationId}&error=Escribe%20el%20valor%20del%20gasto%20para%20registrarlo%20como%20borrador`);
+  const quote = expense.currency === "COP" ? { rate: 1, quotedOn: new Date().toISOString().slice(0, 10), source: "fixed_cop" } : await currentCopRate(expense.currency);
+  if (!quote) redirect(`/workspace?conversation=${conversationId}&error=No%20pudimos%20consultar%20la%20tasa%20de%20referencia.%20Registra%20el%20gasto%20manualmente%20para%20definir%20la%20tasa%20antes%20de%20confirmar.`);
   const { error: expenseError } = await supabase.from("expenses").insert({
     organization_id: organizationId,
     client_request_id: crypto.randomUUID(),
     title: expense.title,
-    category: "gastos_administrativos" as PilotCategory,
+    category: suggestCategory(expense.title) ?? "gastos_administrativos" as PilotCategory,
     expense_date: new Date().toISOString().slice(0, 10),
     original_amount: expense.amount,
-    currency: "COP",
-    exchange_rate_to_cop: 1,
+    currency: expense.currency,
+    exchange_rate_to_cop: quote.rate,
+    exchange_rate_date: quote.quotedOn,
+    exchange_rate_source: quote.source,
+    exchange_rate_reason: expense.currency === "COP" ? null : `Tasa diaria de referencia consultada el ${quote.quotedOn} (${quote.source}); revísala antes de confirmar.`,
     created_by: user.id,
     source: "message",
     status: "draft"
@@ -106,7 +98,7 @@ async function saveCapture(file: File, source: "photo" | "pdf" | "voice") {
   const path = `${organizationId}/captures/${submission.id}/${filename}`;
   const { error: uploadError } = await supabase.storage.from("expense-receipts").upload(path, file, { contentType: file.type, upsert: false });
   if (uploadError) {
-    await supabase.from("capture_submissions").delete().eq("id", submission.id);
+    await supabase.from("capture_submissions").update({ status: "failed" }).eq("id", submission.id);
     redirect("/workspace?error=No%20pudimos%20guardar%20el%20archivo");
   }
   const { error: updateError } = await supabase.from("capture_submissions").update({ storage_path: path }).eq("id", submission.id);
