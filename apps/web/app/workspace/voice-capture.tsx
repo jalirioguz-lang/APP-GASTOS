@@ -12,6 +12,12 @@ export function VoiceCapture() {
   const [state, setState] = useState<RecordingState>("idle");
   const [message, setMessage] = useState("Grabar nota");
 
+  function clear() {
+    if (input.current) input.current.value = "";
+    setState("idle");
+    setMessage("Grabar nota");
+  }
+
   async function startRecording() {
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
       setState("error");
@@ -53,6 +59,6 @@ export function VoiceCapture() {
     <input ref={input} id="audio-upload" className="sr-only" name="audio" type="file" accept="audio/mpeg,audio/mp4,audio/webm" required onChange={(event) => { if (event.currentTarget.files?.length) { setState("ready"); setMessage("Lista para enviar"); } }} />
     <span className="voice-icon" aria-hidden="true">⌁</span>
     <span className="quick-action-copy"><strong>Nota de voz</strong><small>{state === "recording" ? "Grabando… toca para detener" : state === "ready" ? "Lista para enviar" : "Graba como en WhatsApp o adjunta audio"}</small></span>
-    <span className="voice-buttons">{state === "ready" ? <button type="submit">Enviar audio</button> : <button type="button" onClick={toggleRecording} aria-pressed={state === "recording"}>{message}</button>}{state !== "recording" && state !== "ready" && <label htmlFor="audio-upload">Adjuntar</label>}</span>
+    <span className="voice-buttons">{state === "ready" ? <><button type="button" className="cancel-attachment" onClick={clear}>Cancelar</button><button type="submit">Enviar nota</button></> : <button type="button" onClick={toggleRecording} aria-pressed={state === "recording"}>{message}</button>}{state !== "recording" && state !== "ready" && <label htmlFor="audio-upload">Adjuntar</label>}</span>
   </form>;
 }

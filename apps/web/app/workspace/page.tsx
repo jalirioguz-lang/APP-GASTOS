@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
-import { captureDocument, sendAgentMessage } from "./actions";
+import { sendAgentMessage } from "./actions";
 import { VoiceCapture } from "./voice-capture";
+import { PhotoCapture } from "./photo-capture";
 
 function CaptureIcon({ type }: { type: "mic" | "receipt" | "document" | "message" | "arrow" }) {
   const paths = {
@@ -44,11 +45,12 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
           <div className="capture-form-footer"><span>Fecha de hoy y COP por defecto. Podrás revisar el borrador después.</span><button type="submit">Enviar <CaptureIcon type="arrow" /></button></div>
         </form>
         <div className="quick-actions" aria-label="Otras formas rápidas de registrar">
-          <form action={captureDocument} className="quick-action upload-channel"><label><CaptureIcon type="receipt" /><span><strong>Foto</strong><small>Tomar o subir comprobante</small></span><input name="document" type="file" accept="image/jpeg,image/png" capture="environment" required /></label><button type="submit">Enviar foto</button></form>
+          <PhotoCapture />
           <VoiceCapture />
         </div>
       </section>
-      <section className="capture-guidance" aria-label="Opciones adicionales"><div><strong>Recibir por correo</strong><p>Este espacio tendrá una dirección única para reenviar facturas y comprobantes. La mostraremos aquí con un botón para copiarla cuando el administrador active la recepción.</p></div><div><strong>¿Prefieres hacerlo manual?</strong><p>También puedes completar todos los datos por tu cuenta cuando lo necesites.</p><Link href="/dashboard#registro-manual">Registrar manualmente</Link></div><div><strong>Archivo o PDF</strong><p>Para enviar un PDF, usa el registro manual por ahora. Las fotos y las notas de voz quedan separadas por cada espacio.</p></div></section>
+      <section className="manual-entry-card" aria-labelledby="manual-entry-title"><div><p className="capture-eyebrow">OTRA FORMA DE REGISTRAR</p><h2 id="manual-entry-title">¿Quieres llenar los datos tú?</h2><p><strong>Registro manual</strong> te permite indicar cada detalle: fecha, valor, categoría, cuenta, proyecto y moneda. Úsalo cuando necesites tener el control completo del gasto.</p></div><Link className="manual-entry-button" href="/dashboard#registro-manual">Ir a registro manual <CaptureIcon type="arrow" /></Link></section>
+      <section className="capture-guidance" aria-label="Opciones adicionales"><div><strong>Recibir por correo</strong><p>Este espacio tendrá una dirección única para reenviar facturas y comprobantes. La mostraremos aquí con un botón para copiarla cuando el administrador active la recepción.</p></div><div><strong>Archivo o PDF</strong><p>Para enviar un PDF, usa el registro manual por ahora. Las fotos y las notas de voz quedan separadas por cada espacio.</p></div></section>
     </section>
   </main>;
 }
