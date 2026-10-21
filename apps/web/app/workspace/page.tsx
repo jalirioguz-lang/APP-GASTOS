@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "../../lib/supabase/server";
-import { captureDocument, sendAgentMessage } from "./actions";
+import { sendAgentMessage } from "./actions";
 import { VoiceCapture } from "./voice-capture";
+import { PhotoCapture } from "./photo-capture";
 
 function CaptureIcon({ type }: { type: "mic" | "receipt" | "document" | "message" | "arrow" }) {
   const paths = {
@@ -44,7 +45,7 @@ export default async function WorkspacePage({ searchParams }: { searchParams: Pr
           <div className="capture-form-footer"><span>Fecha de hoy y COP por defecto. Podrás revisar el borrador después.</span><button type="submit">Enviar <CaptureIcon type="arrow" /></button></div>
         </form>
         <div className="quick-actions" aria-label="Otras formas rápidas de registrar">
-          <form action={captureDocument} className="quick-action upload-channel"><label><CaptureIcon type="receipt" /><span><strong>Foto</strong><small>Tomar o subir comprobante</small></span><input name="document" type="file" accept="image/jpeg,image/png" capture="environment" required /></label><button type="submit">Enviar foto</button></form>
+          <PhotoCapture />
           <VoiceCapture />
         </div>
       </section>

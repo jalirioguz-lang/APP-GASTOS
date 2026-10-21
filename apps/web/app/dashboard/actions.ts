@@ -10,6 +10,17 @@ function field(formData: FormData, name: string) {
   return String(formData.get(name) || "").trim();
 }
 
+function isUuid(value: string) {
+  return /^[0-9a-f-]{36}$/i.test(value);
+}
+
+async function validSubprojectSelection(supabase: Awaited<ReturnType<typeof createClient>>, organizationId: string, projectId: string, subprojectId: string) {
+  if (!subprojectId) return true;
+  if (!projectId || !isUuid(projectId) || !isUuid(subprojectId)) return false;
+  const { data } = await supabase.from("subprojects").select("id").eq("id", subprojectId).eq("project_id", projectId).eq("organization_id", organizationId).is("archived_at", null).maybeSingle();
+  return Boolean(data);
+}
+
 async function currentOrganization() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -27,6 +38,7 @@ export async function createExpense(formData: FormData) {
   const category = field(formData, "category");
   const vendor = field(formData, "vendor");
   const projectId = field(formData, "projectId");
+  const subprojectId = field(formData, "subprojectId");
   const accountId = field(formData, "accountId");
   const expenseDate = field(formData, "expenseDate");
   const rawAmount = field(formData, "amount");
@@ -40,7 +52,7 @@ export async function createExpense(formData: FormData) {
   const validRequestId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId);
   const validAmount = currency === "COP" ? Number.isSafeInteger(amount) : Number.isFinite(amount) && amount > 0 && Math.round(amount * 100) === amount * 100;
   if (!hasAcceptedReceipt(receipt)) redirect("/dashboard?error=El%20comprobante%20debe%20ser%20JPG%2C%20PNG%20o%20PDF%20de%20hasta%205%20MB");
-  if (!validRequestId || title.length < 2 || title.length > 200 || !PILOT_CATEGORIES.includes(category as PilotCategory) || vendor.length > 160 || !isValidIsoDate(expenseDate) || !["COP", "USD", "EUR"].includes(currency) || !validAmount || amount < 1 || amount > 9999999999999999 || !Number.isFinite(exchangeRate) || exchangeRate <= 0 || (currency !== "COP" && (exchangeRateReason.length < 3 || exchangeRateReason.length > 240))) {
+  if (!validRequestId || title.length < 2 || title.length > 200 || !PILOT_CATEGORIES.includes(category as PilotCategory) || vendor.length > 160 || !isValidIsoDate(expenseDate) || !["COP", "USD", "EUR"].includes(currency) || !validAmount || amount < 1 || amount > 9999999999999999 || !Number.isFinite(exchangeRate) || exchangeRate <= 0 || (projectId && !isUuid(projectId)) || (subprojectId && !isUuid(subprojectId)) || (currency !== "COP" && (exchangeRateReason.length < 3 || exchangeRateReason.length > 240)) || !(await validSubprojectSelection(supabase, organizationId, projectId, subprojectId))) {
     redirect("/dashboard?error=Revisa%20los%20datos%20del%20gasto");
   }
 
@@ -51,6 +63,7 @@ export async function createExpense(formData: FormData) {
     category,
     vendor: vendor || null,
     project_id: projectId || null,
+    subproject_id: subprojectId || null,
     account_id: accountId || null,
     expense_date: expenseDate,
     original_amount: amount,
@@ -98,16 +111,18 @@ export async function updateDraftExpense(formData: FormData) {
   const title = field(formData, "title");
   const category = field(formData, "category");
   const vendor = field(formData, "vendor");
+  const projectId = field(formData, "projectId");
+  const subprojectId = field(formData, "subprojectId");
   const expenseDate = field(formData, "expenseDate");
   const amount = Number(field(formData, "amount"));
   const currency = field(formData, "currency");
   const exchangeRate = currency === "COP" ? 1 : Number(field(formData, "exchangeRate"));
   const exchangeRateReason = field(formData, "exchangeRateReason");
   const validAmount = currency === "COP" ? Number.isSafeInteger(amount) : Number.isFinite(amount) && amount > 0 && Math.round(amount * 100) === amount * 100;
-  if (!/^[0-9a-f-]{36}$/i.test(expenseId) || title.length < 2 || title.length > 200 || !PILOT_CATEGORIES.includes(category as PilotCategory) || vendor.length > 160 || !isValidIsoDate(expenseDate) || !["COP", "USD", "EUR"].includes(currency) || !validAmount || amount < 1 || !Number.isFinite(exchangeRate) || exchangeRate <= 0 || (currency !== "COP" && (exchangeRateReason.length < 3 || exchangeRateReason.length > 240))) {
+  if (!isUuid(expenseId) || title.length < 2 || title.length > 200 || !PILOT_CATEGORIES.includes(category as PilotCategory) || vendor.length > 160 || !isValidIsoDate(expenseDate) || !["COP", "USD", "EUR"].includes(currency) || !validAmount || amount < 1 || !Number.isFinite(exchangeRate) || exchangeRate <= 0 || (projectId && !isUuid(projectId)) || (subprojectId && !isUuid(subprojectId)) || (currency !== "COP" && (exchangeRateReason.length < 3 || exchangeRateReason.length > 240)) || !(await validSubprojectSelection(supabase, organizationId, projectId, subprojectId))) {
     redirect("/dashboard?error=Revisa%20los%20datos%20del%20borrador");
   }
-  const { error } = await supabase.from("expenses").update({ title, category, vendor: vendor || null, expense_date: expenseDate, original_amount: amount, currency, exchange_rate_to_cop: exchangeRate, exchange_rate_date: expenseDate, exchange_rate_source: currency === "COP" ? "fixed_cop" : "user_reviewed", exchange_rate_reason: currency === "COP" ? null : exchangeRateReason }).eq("id", expenseId).eq("organization_id", organizationId).eq("status", "draft");
+  const { error } = await supabase.from("expenses").update({ title, category, vendor: vendor || null, project_id: projectId || null, subproject_id: subprojectId || null, expense_date: expenseDate, original_amount: amount, currency, exchange_rate_to_cop: exchangeRate, exchange_rate_date: expenseDate, exchange_rate_source: currency === "COP" ? "fixed_cop" : "user_reviewed", exchange_rate_reason: currency === "COP" ? null : exchangeRateReason }).eq("id", expenseId).eq("organization_id", organizationId).eq("status", "draft");
   if (error) redirect("/dashboard?error=No%20fue%20posible%20actualizar%20el%20borrador");
   redirect("/dashboard?notice=Borrador%20actualizado.");
 }
@@ -129,6 +144,29 @@ export async function createProject(formData: FormData) {
   const { error } = await supabase.from("projects").insert({ organization_id: organizationId, name });
   if (error) redirect("/dashboard?error=No%20fue%20posible%20crear%20el%20proyecto");
   redirect("/dashboard?notice=Proyecto%20creado.");
+}
+
+export async function createSubproject(formData: FormData) {
+  const { supabase, organizationId } = await currentOrganization();
+  const projectId = field(formData, "projectId");
+  const name = field(formData, "name");
+  if (!isUuid(projectId) || name.length < 1 || name.length > 120) redirect("/dashboard?error=Datos%20de%20subproyecto%20inválidos");
+  const { data: project } = await supabase.from("projects").select("id").eq("id", projectId).eq("organization_id", organizationId).is("archived_at", null).maybeSingle();
+  if (!project) redirect("/dashboard?error=El%20proyecto%20no%20está%20disponible");
+  const { error } = await supabase.from("subprojects").insert({ organization_id: organizationId, project_id: projectId, name });
+  if (error) redirect("/dashboard?error=No%20fue%20posible%20crear%20el%20subproyecto");
+  revalidatePath("/dashboard");
+  redirect("/dashboard?notice=Subproyecto%20creado.");
+}
+
+export async function archiveSubproject(formData: FormData) {
+  const { supabase, organizationId } = await currentOrganization();
+  const subprojectId = field(formData, "subprojectId");
+  if (!isUuid(subprojectId)) redirect("/dashboard?error=Subproyecto%20inválido");
+  const { error } = await supabase.from("subprojects").update({ archived_at: new Date().toISOString() }).eq("id", subprojectId).eq("organization_id", organizationId).is("archived_at", null);
+  if (error) redirect("/dashboard?error=No%20fue%20posible%20archivar%20el%20subproyecto");
+  revalidatePath("/dashboard");
+  redirect("/dashboard?notice=Subproyecto%20archivado.");
 }
 
 export async function archiveProject(formData: FormData) {
